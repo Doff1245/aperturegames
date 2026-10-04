@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aperture Science - Entertainment Enrichment Center</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="portal-glow"></div>
+
+    <!-- КРУТАЯ СТАРТОВАЯ МЕНЮШКА -->
+    <div id="start-menu" class="menu-overlay">
+        <div class="menu-box">
+            <div class="aperture-logo-large"></div>
+            <h1>APERTURE SCIENCE</h1>
+            <p class="menu-subtitle">Computer-Aided Enrichment Center</p>
+            <div class="menu-warning">⚠️ ATTENTION: COGNITIVE TESTS AHEAD</div>
+            <button class="menu-btn" id="init-terminal-btn">START COGNITIVE TESTING</button>
+        </div>
+    </div>
+
+    <!-- ТЕРМИНАЛ С ИГРАМИ -->
+    <div class="aperture-terminal" id="main-terminal" style="display: none;">
+        <header class="terminal-header">
+            <div class="brand">
+                <div class="aperture-logo-mini"></div>
+                <span>APERTURE SCIENCE TESTING TERMINAL</span>
+            </div>
+            <div class="status-tab">TESTING_IN_PROGRESS</div>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchGame('clicker', event)">TEST 01: ENERGY PELLET</button>
+            <button class="tab-btn" onclick="switchGame('memory', event)">TEST 02: MEMORY RECALL</button>
+            <button class="tab-btn" onclick="switchGame('turret', event)">TEST 03: TURRET DEFENSE</button>
+        </div>
+
+        <!-- ИГРА 1 -->
+        <div id="game-clicker" class="game-container active">
+            <div class="game-info">
+                <h3>High-Energy Pellet Containment Test</h3>
+                <p>Click the unstable energy pellet before it destabilizes. Missing the target costs points.</p>
+                <div class="score-board">SCORE: <span id="clicker-score">0</span></div>
+            </div>
+            <div class="game-area" id="clicker-area">
+                <div id="energy-ball" class="ball blue"></div>
+            </div>
+        </div>
+
+        <!-- ИГРА 2 -->
+        <div id="game-memory" class="game-container">
+            <div class="game-info">
+                <h3>Gellan Core Memory Calibration</h3>
+                <p>Watch the sequence shown by the terminal panels and repeat it exactly.</p>
+                <div class="score-board">LEVEL: <span id="memory-score">1</span></div>
+                <button class="action-btn" id="start-memory-btn">START CALIBRATION</button>
+            </div>
+            <div class="memory-grid">
+                <div class="memory-pad pad-blue" data-id="0"></div>
+                <div class="memory-pad pad-orange" data-id="1"></div>
+                <div class="memory-pad pad-yellow" data-id="2"></div>
+                <div class="memory-pad pad-cyan" data-id="3"></div>
+            </div>
+        </div>
+        <!-- ИГРА 3 -->
+        <div id="game-turret" class="game-container">
+            <div class="game-info">
+                <h3>Turret Grid Neutralization</h3>
+                <p>Inbound Aperture Turrets detected! Click to neutralize them before they reach the bottom.</p>
+                <div class="score-board">DESTROYED: <span id="turret-score">0</span></div>
+                <button class="action-btn" id="start-turret-btn">ENGAGE DEFENSE GRID</button>
+            </div>
+            <div class="game-area turret-field" id="turret-area"></div>
+        </div>
+
+        <footer class="terminal-footer">
+            <span>DEVICE_ID: #999-MINIGAMES</span>
+            <span>CAKE_STATUS: NOT_FOUND</span>
+        </footer>
+    </div>
+
+    <!-- НАЧАЛО СКРИПТОВ И ЗВУКОВ -->
+    <script>
+        let audioCtx = null;
+
+        document.getElementById('init-terminal-btn').addEventListener('click', () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            playSound('level');
+            startAmbientMusic(); // Запуск новой громкой фоновой музыки
+            document.getElementById('start-menu').style.display = 'none';
+            document.getElementById('main-terminal').style.display = 'block';
+            moveBall();
+        });
+
+        function startAmbientMusic() {
+            if (!audioCtx) return;
+            const baseDrone1 = audioCtx.createOscillator();
+            const baseDrone2 = audioCtx.createOscillator();
+            const droneGain = audioCtx.createGain();
+            
+            baseDrone1.type = 'sine'; baseDrone1.frequency.setValueAtTime(110, audioCtx.currentTime);
+            baseDrone2.type = 'triangle'; baseDrone2.frequency.setValueAtTime(111, audioCtx.currentTime);
+            droneGain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+            
+            baseDrone1.connect(droneGain); baseDrone2.connect(droneGain);
+            droneGain.connect(audioCtx.destination);
+            baseDrone1.start(); baseDrone2.start();
+
+            function playAmbientChord() {
+                const chord = [146.83, 164.81, 196.00, 220.00, 293.66];
+                const randomNote = chord[Math.floor(Math.random() * chord.length)];
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'sine'; osc.frequency.setValueAtTime(randomNote, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.08, audioCtx.currentTime + 1.0);
+                gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 3.8);
+                
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + 3.8);
+            }
+            playAmbientChord();
+            setInterval(playAmbientChord, 4000);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+
+            if (type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'miss') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(180, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+            } else if (type === 'laser') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.07, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+            } else if (type === 'fail') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(140, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 0.5);
+                gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.5);
+            } else if (type === 'level') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(320, audioCtx.currentTime);
+                osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.08);
+                osc.frequency.setValueAtTime(640, audioCtx.currentTime + 0.16);
+                gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+                osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+            }
+        }
+        function switchGame(gameType, event) {
+            playSound('click');
+            document.querySelectorAll('.game-container').forEach(g => g.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`game-${gameType}`).classList.add('active');
+            event.target.classList.add('active');
+            if(gameType !== 'turret') { isTurretRunning = false; clearInterval(turretSpawnInterval); }
+        }
+
+        // ЛОГИКА ИГРЫ 1: КЛИКЕР
+        const ball = document.getElementById('energy-ball');
+        const clickerArea = document.getElementById('clicker-area');
+        const scoreDisplay = document.getElementById('clicker-score');
+        let clickerScore = 0, ballInterval = null, speed = 2000;
+
+        function moveBall() {
+            if (document.getElementById('game-clicker').classList.contains('active')) {
+                const maxX = clickerArea.clientWidth - ball.clientWidth;
+                const maxY = clickerArea.clientHeight - ball.clientHeight;
+                ball.style.transform = `translate(${Math.floor(Math.random() * maxX)}px, ${Math.floor(Math.random() * maxY)}px)`;
+            }
+        }
+
+        clickerArea.addEventListener('mousedown', (e) => {
+            if (e.target === clickerArea) {
+                if (clickerScore > 0) clickerScore--;
+                scoreDisplay.innerText = clickerScore; playSound('miss');
+            }
+        });
+
+        ball.addEventListener('mousedown', (e) => {
+            e.stopPropagation(); clickerScore++; scoreDisplay.innerText = clickerScore; playSound('click');
+            if(ball.classList.contains('blue')) {
+                ball.className = 'ball orange'; clickerArea.style.boxShadow = 'inset 0 0 20px rgba(247, 127, 0, 0.3)';
+            } else {
+                ball.className = 'ball blue'; clickerArea.style.boxShadow = 'inset 0 0 20px rgba(0, 180, 216, 0.3)';
+            }
+            moveBall(); clearInterval(ballInterval);
+            speed = Math.max(450, 2000 - (clickerScore * 85));
+            ballInterval = setInterval(moveBall, speed);
+        });
+        ballInterval = setInterval(moveBall, speed);
+
+        // ЛОГИКА ИГРЫ 2: ПАМЯТЬ
+        const pads = document.querySelectorAll('.memory-pad');
+        const startBtn = document.getElementById('start-memory-btn');
+        const memoryScoreDisplay = document.getElementById('memory-score');
+        let sequence = [], playerSequence = [], level = 1, isPlayingSequence = false;
+
+        startBtn.addEventListener('click', () => { playSound('click'); startMemoryGame(); });
+        function startMemoryGame() { sequence = []; level = 1; memoryScoreDisplay.innerText = level; nextRound(); }
+        function nextRound() {
+            playerSequence = []; isPlayingSequence = true; sequence.push(Math.floor(Math.random() * 4));
+            let i = 0;
+            const interval = setInterval(() => {
+                if(!isPlayingSequence && sequence.length === 0) { clearInterval(interval); return; }
+                flashPad(pads[sequence[i]]); i++;
+                if (i >= sequence.length) { clearInterval(interval); isPlayingSequence = false; }
+            }, 600);
+        }
+        function flashPad(pad) { pad.classList.add('lit'); playSound('click'); setTimeout(() => pad.classList.remove('lit'), 300); }
+
+        pads.forEach(pad => {
+            pad.addEventListener('click', (e) => {
+                if (isPlayingSequence || sequence.length === 0) return;
+                const id = parseInt(e.target.getAttribute('data-id'));
+                flashPad(e.target); playerSequence.push(id);
+                if (playerSequence[playerSequence.length - 1] !== sequence[playerSequence.length - 1]) {
+                    playSound('fail'); alert(`🧬 TEST FAILED.\nCalibration reset.`);
+                    sequence = []; memoryScoreDisplay.innerText = 1; return;
+                }
+                if (playerSequence.length === sequence.length) {
+                    level++; memoryScoreDisplay.innerText = level; playSound('level'); setTimeout(nextRound, 1000);
+                }
+            });
+        });
+
+        // ЛОГИКА ИГРЫ 3: ТУРЕЛИ
+        const turretArea = document.getElementById('turret-area');
+        const turretScoreDisplay = document.getElementById('turret-score');
+        const startTurretBtn = document.getElementById('start-turret-btn');
+        let turretScore = 0, turretSpawnInterval, turretSpeed = 4, isTurretRunning = false;
+
+        startTurretBtn.addEventListener('click', () => {
+            playSound('click'); if(isTurretRunning) return; isTurretRunning = true;
+            turretScore = 0; turretSpeed = 4; turretScoreDisplay.innerText = turretScore;
+            turretArea.innerHTML = ''; turretSpawnInterval = setInterval(spawnTurret, 1200);
+        });
+
+        function spawnTurret() {
+            if(!isTurretRunning) return;
+            const turret = document.createElement('div'); turret.className = 'turret-enemy';
+            const maxLeft = turretArea.clientWidth - 30;
+            turret.style.left = Math.floor(Math.random() * maxLeft) + 'px'; turret.style.top = '0px';
+            turretArea.appendChild(turret);
+
+            let posY = 0;
+            const moveInterval = setInterval(() => {
+                if(!isTurretRunning) { clearInterval(moveInterval); turret.remove(); return; }
+                posY += turretSpeed; turret.style.top = posY + 'px';
+                if (posY >= turretArea.clientHeight - 30) { clearInterval(moveInterval); gameOverTurrets(); }
+            }, 30);
+
+            turret.addEventListener('mousedown', () => {
+                if(!isTurretRunning) return; playSound('laser'); turret.remove();
+                clearInterval(moveInterval); turretScore++; turretScoreDisplay.innerText = turretScore;
+                if(turretScore % 5 === 0) turretSpeed += 0.8;
+            });
+        }
+
+        function gameOverTurrets() {
+            isTurretRunning = false; clearInterval(turretSpawnInterval); playSound('fail');
+            alert(`🚨 GRID BREACHED.\nTurrets overran the perimeter. Score: ${turretScore}`);
+            turretArea.innerHTML = '';
+        }
+    </script>
+</body>
+</html>
